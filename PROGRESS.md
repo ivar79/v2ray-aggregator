@@ -22,8 +22,8 @@
 - **Phase 1 (Foundation):** ✅ تکمیل شده
 - **Phase 2 (Parser Implementation):** ✅ تکمیل شده
 - **Phase 3 (Database Integration):** ✅ تکمیل شده (در Phase 1)
-- **Phase 4 (Telegram Collector):** ⏳ در انتظار تایید
-- **Phase 5 (Output Generator):** ⏳ در انتظار تایید
+- **Phase 4 (Telegram Collector):** ✅ تکمیل شده
+- **Phase 5 (Output Generator):** ✅ تکمیل شده
 - **Phase 6 (GitHub Publisher):** ⏳ در انتظار تایید
 - **Phase 7 (Admin Bot):** ⏳ در انتظار تایید
 
@@ -96,7 +96,7 @@ Telegram Channels
 - **Database Layer** - Repository pattern با lifecycle states
 - **Configuration Management** - Pydantic-based settings با environment variables
 - **Logging** - Structured logging با sensitive data redaction
-- **Testing** - 53 تست جامع با pytest
+- **Testing** - 103 تست جامع با pytest
 
 ### ویژگی‌های در حال توسعه ⏳
 - **Telegram Collector** - جمع‌آوری خودکار از کانال‌ها
@@ -162,6 +162,9 @@ python main.py status
 
 # انتشار به GitHub
 python main.py publish
+
+# تولید فایل‌های خروجی
+python main.py generate
 
 # تست parser
 python main.py test-parser
@@ -235,6 +238,9 @@ LOG_FILE=logs/app.log
 
 #### `python main.py test-parser`
 تست parser با sample configs
+
+#### `python main.py generate`
+تولید فایل‌های خروجی از دیتابیس (Output Generator)
 
 #### `python main.py publish`
 انتشار configs به GitHub
@@ -336,8 +342,8 @@ python -m pytest tests/ -v
 - **Phase 1 (Foundation):** ✅ تکمیل شده
 - **Phase 2 (Parser Implementation):** ✅ تکمیل شده
 - **Phase 3 (Database Integration):** ✅ تکمیل شده (در Phase 1)
-- **Phase 4 (Telegram Collector):** ⏳ در انتظار تایید
-- **Phase 5 (Output Generator):** ⏳ در انتظار تایید
+- **Phase 4 (Telegram Collector):** ✅ تکمیل شده
+- **Phase 5 (Output Generator):** ✅ تکمیل شده
 - **Phase 6 (GitHub Publisher):** ⏳ در انتظار تایید
 - **Phase 7 (Admin Bot):** ⏳ در انتظار تایید
 
@@ -407,21 +413,21 @@ python -m pytest tests/ -v
 
 **تعداد تست‌های Phase 4:** 18 تست - همه پاس
 
-### Phase 5: Output Generator ⏳
-**در انتظار تایید:**
-- تولید فایل‌های خروجی پروتکل‌ها
-- فایل‌های تمیز (یک config در هر خط)
-- فایل‌های جداگانه برای هر پروتکل:
-  - all.txt
-  - vmess.txt
-  - vless.txt
-  - trojan.txt
-  - shadowsocks.txt
-  - hysteria.txt
-  - hysteria2.txt
-- تولید stats.json با آمار غیر حساس
-- README.md با برندینگ
-- عدم قرار دادن هدر در فایل‌های ماشین‌خوان
+### Phase 5: Output Generator ✅
+**تکمیل شده:**
+- Output Generator class (app/output/generator.py) - reusable component
+- Database as source of truth (Config table, is_active + is_structurally_valid filtering)
+- Per-protocol output files: all.txt, vmess.txt, vless.txt, trojan.txt, shadowsocks.txt, hysteria.txt, hysteria2.txt
+- stats.json with non-sensitive aggregate data
+- README.md with channel branding
+- Deterministic ordering (sorted by config_hash)
+- Deduplication via database unique config_hash constraint
+- Atomic generation (temp staging directory → replace)
+- Error handling for empty database, filesystem errors
+- CLI command: python main.py generate
+- ConfigSnapshot dataclass for session-safe data extraction
+- No secrets in generated files
+- 32 comprehensive tests covering all acceptance criteria
 
 ### Phase 6: GitHub Publisher ⏳
 **در انتظار تایید:**
@@ -480,6 +486,9 @@ c:\Users\Hossein\Desktop\Telegram bot\
 │   │   └── repository.py
 │   ├── github/
 │   │   └── __init__.py
+│   ├── output/
+│   │   ├── __init__.py
+│   │   └── generator.py
 │   ├── parser/
 │   │   ├── __init__.py
 │   │   ├── base.py
@@ -499,6 +508,8 @@ c:\Users\Hossein\Desktop\Telegram bot\
     ├── conftest.py
     ├── test_database.py
     ├── test_parsers.py
+    ├── test_collector.py
+    ├── test_output.py
     ├── fixtures/
     └── __pycache__/
 ```
@@ -601,7 +612,29 @@ c:\Users\Hossein\Desktop\Telegram bot\
 - Canonicalization tests (4 tests)
 - Malformed config tests (4 tests)
 
-**مجموع:** 53 تست - همه پاس ✅
+### Phase 4 Tests (18 passed)
+- Telegram collector functionality
+- Message processing
+- Document attachment handling
+- Collection run statistics
+
+### Phase 5 Tests (32 passed)
+- Empty database generation (2 tests)
+- Single protocol configs - all 6 protocols (6 tests)
+- Multiple protocols (2 tests)
+- Deduplication (2 tests)
+- Deterministic ordering (2 tests)
+- stats.json structure (2 tests)
+- README.md generation (2 tests)
+- No secrets in generated files (1 test)
+- Lifecycle filtering (3 tests)
+- Atomic generation (1 test)
+- File format (3 tests)
+- CLI generate command (2 tests)
+- Protocol separation (2 tests)
+- Error handling (2 tests)
+
+**مجموع:** 103 تست - همه پاس ✅
 
 ---
 
@@ -698,6 +731,7 @@ python -m pip install telethon aiogram apscheduler python-dateutil
 # اجرای تست‌ها
 python -m pytest tests/test_database.py -v
 python -m pytest tests/test_parsers.py -v
+python -m pytest tests/test_output.py -v
 python -m pytest tests/ -v
 
 # راه‌اندازی دیتابیس
@@ -733,8 +767,8 @@ python main.py publish
 
 ## وضعیت فعلی
 
-**Phase 1 و Phase 2 کاملاً تکمیل شده و تست‌ها پاس هستند.**
+**Phase 1 و Phase 2 و Phase 4 و Phase 5 کاملاً تکمیل شده و تست‌ها پاس هستند.**
 
-**آماده برای شروع Phase 4 (Telegram Collector Implementation).**
+**آماده برای شروع Phase 6 (GitHub Publisher).**
 
 **در انتظار تایید کاربر برای ادامه.**

@@ -24,6 +24,7 @@ Examples:
   python main.py status           Show system status
   python main.py init-db          Initialize database
   python main.py test-parser      Test parser functionality
+  python main.py generate         Generate output files from database
         """
     )
     
@@ -43,6 +44,9 @@ Examples:
     
     # Test parser command
     subparsers.add_parser('test-parser', help='Test parser functionality')
+    
+    # Generate command
+    subparsers.add_parser('generate', help='Generate output files from database')
     
     # Publish command
     subparsers.add_parser('publish', help='Publish to GitHub')
@@ -175,6 +179,31 @@ def cmd_publish():
         return 1
 
 
+def cmd_generate():
+    """Generate output files from database."""
+    logger = get_logger(__name__)
+    
+    try:
+        logger.info("Starting output generation...")
+        
+        from app.output.generator import OutputGenerator
+        init_database()
+        create_tables()
+        
+        generator = OutputGenerator()
+        stats = generator.generate()
+        
+        logger.info(f"Output generation completed successfully")
+        logger.info(f"Total configs: {stats['total_configs']}")
+        for protocol, count in stats.get('configs_by_protocol', {}).items():
+            logger.info(f"  {protocol}: {count}")
+        
+        return 0
+    except Exception as e:
+        logger.error(f"Output generation failed: {e}")
+        return 1
+
+
 def main():
     """Main entry point."""
     args = parse_args()
@@ -203,6 +232,8 @@ def main():
         return cmd_test_parser()
     elif args.command == 'publish':
         return cmd_publish()
+    elif args.command == 'generate':
+        return cmd_generate()
     else:
         # No command or invalid command
         print("Please specify a command. Use --help for usage.", file=sys.stderr)

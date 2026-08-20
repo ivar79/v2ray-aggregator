@@ -59,6 +59,8 @@ htmlcov/
 
 # Generated output (if storing locally)
 configs/*.txt
+configs/README.md
+configs/stats.json
 metadata/
 
 # OS

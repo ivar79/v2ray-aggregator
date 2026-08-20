@@ -83,6 +83,12 @@ class Settings(BaseSettings):
         description="Telethon session file name"
     )
     
+    # Output
+    output_dir: str = Field(
+        default="configs",
+        description="Directory for generated output files"
+    )
+    
     @field_validator('log_level')
     @classmethod
     def uppercase_log_level(cls, v):
