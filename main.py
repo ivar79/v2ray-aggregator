@@ -25,6 +25,7 @@ Examples:
   python main.py init-db          Initialize database
   python main.py test-parser      Test parser functionality
   python main.py generate         Generate output files from database
+  python main.py publish          Publish generated files to GitHub
         """
     )
     
@@ -171,9 +172,33 @@ def cmd_publish():
     logger = get_logger(__name__)
     
     try:
-        logger.info("Publishing to GitHub...")
-        logger.info("Note: GitHub publisher not implemented yet in Phase 1")
-        return 0
+        logger.info("Publishing configurations to GitHub...")
+        from app.github.publisher import GitHubPublisher
+        from app.output.generator import OutputGenerator
+        from app.config import settings
+        
+        # First generate output files
+        logger.info("Generating output files...")
+        init_database()
+        create_tables()
+        
+        generator = OutputGenerator()
+        generator.generate()
+        
+        # Then publish to GitHub
+        publisher = GitHubPublisher()
+        result = publisher.publish(source_dir=Path(settings.output_dir))
+        
+        if result["success"]:
+            if result.get("commit_hash"):
+                logger.info(f"Successfully published! Commit hash: {result['commit_hash']}")
+            else:
+                logger.info("No changes to commit")
+            return 0
+        else:
+            logger.error(f"Publish failed: {result.get('error')}")
+            return 1
+            
     except Exception as e:
         logger.error(f"GitHub publish failed: {e}")
         return 1
