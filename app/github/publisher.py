@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Optional
 from datetime import datetime
 
-from app.config import settings
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +37,14 @@ class GitHubPublisher:
             local_path: Local path for repository clone
             github_token: GitHub personal access token for authentication
         """
-        self.repo_url = repo_url or self._build_repo_url()
+        settings = get_settings()
+        self.repo_url = repo_url or self._build_repo_url(settings)
         self.branch = branch
         self.local_path = local_path or Path("github_repo")
         self.github_token = github_token or settings.github_token
         self.dry_run = settings.dry_run
         
-    def _build_repo_url(self) -> str:
+    def _build_repo_url(self, settings) -> str:
         """Build GitHub repository URL from settings."""
         if not all([settings.github_owner, settings.github_repo]):
             raise ValueError("GITHUB_OWNER and GITHUB_REPO must be set in settings")

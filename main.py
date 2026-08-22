@@ -175,7 +175,7 @@ def cmd_publish():
         logger.info("Publishing configurations to GitHub...")
         from app.github.publisher import GitHubPublisher
         from app.output.generator import OutputGenerator
-        from app.config import settings
+        from app.config import get_settings
         
         # First generate output files
         logger.info("Generating output files...")
@@ -187,6 +187,7 @@ def cmd_publish():
         
         # Then publish to GitHub
         publisher = GitHubPublisher()
+        settings = get_settings()
         result = publisher.publish(source_dir=Path(settings.output_dir))
         
         if result["success"]:

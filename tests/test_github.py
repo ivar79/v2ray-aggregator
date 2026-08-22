@@ -41,7 +41,7 @@ def mock_settings():
 @pytest.fixture
 def publisher(tmp_path, mock_settings):
     """Create a GitHub Publisher instance for testing."""
-    with patch('app.github.publisher.settings', mock_settings):
+    with patch('app.github.publisher.get_settings', return_value=mock_settings):
         return GitHubPublisher(
             repo_url="https://github.com/test_owner/test_repo.git",
             branch="main",
@@ -81,23 +81,24 @@ def sample_output_dir(tmp_path):
 class TestGitHubPublisherInit:
     """Test GitHub Publisher initialization."""
     
-    def test_init_with_all_params(self, tmp_path):
+    def test_init_with_all_params(self, tmp_path, mock_settings):
         """Test initialization with all parameters."""
-        publisher = GitHubPublisher(
-            repo_url="https://github.com/owner/repo.git",
-            branch="main",
-            local_path=tmp_path / "repo",
-            github_token="token123"
-        )
-        
-        assert publisher.repo_url == "https://github.com/owner/repo.git"
-        assert publisher.branch == "main"
-        assert publisher.local_path == tmp_path / "repo"
-        assert publisher.github_token == "token123"
+        with patch('app.github.publisher.get_settings', return_value=mock_settings):
+            publisher = GitHubPublisher(
+                repo_url="https://github.com/owner/repo.git",
+                branch="main",
+                local_path=tmp_path / "repo",
+                github_token="token123"
+            )
+            
+            assert publisher.repo_url == "https://github.com/owner/repo.git"
+            assert publisher.branch == "main"
+            assert publisher.local_path == tmp_path / "repo"
+            assert publisher.github_token == "token123"
     
     def test_init_with_settings(self, mock_settings):
         """Test initialization using settings."""
-        with patch('app.github.publisher.settings', mock_settings):
+        with patch('app.github.publisher.get_settings', return_value=mock_settings):
             publisher = GitHubPublisher()
             
             assert publisher.repo_url == "https://github.com/test_owner/test_repo.git"
@@ -105,19 +106,18 @@ class TestGitHubPublisherInit:
     
     def test_build_repo_url(self, mock_settings):
         """Test building repository URL from settings."""
-        with patch('app.github.publisher.settings', mock_settings):
+        with patch('app.github.publisher.get_settings', return_value=mock_settings):
             publisher = GitHubPublisher()
-            url = publisher._build_repo_url()
+            url = publisher._build_repo_url(mock_settings)
             
             assert url == "https://github.com/test_owner/test_repo.git"
     
-    def test_build_repo_url_missing_settings(self):
+    def test_build_repo_url_missing_settings(self, mock_settings):
         """Test build_repo_url with missing settings."""
-        with patch('app.github.publisher.settings', Settings()):
-            publisher = GitHubPublisher()
-            
+        mock_settings.github_owner = ""
+        with patch('app.github.publisher.get_settings', return_value=mock_settings):
             with pytest.raises(ValueError, match="GITHUB_OWNER and GITHUB_REPO must be set"):
-                publisher._build_repo_url()
+                GitHubPublisher()
 
 
 class TestGitCommands:
@@ -390,31 +390,26 @@ class TestIntegration:
     
     def test_full_publish_workflow(self, publisher, sample_output_dir):
         """Test complete publish workflow from start to finish."""
+        publisher.local_path.mkdir(parents=True, exist_ok=True)
         with patch.object(publisher, '_run_git_command') as mock_git:
             # Mock git responses
-            mock_git.side_effect = [
-                MagicMock(stdout="", stderr=""),  # clone/fetch
-                MagicMock(stdout="", stderr=""),  # checkout
-                MagicMock(stdout="M file.txt\n", stderr=""),  # status
-                MagicMock(stdout="abc123", stderr=""),  # rev-parse
-                MagicMock(stdout="", stderr=""),  # config email
-                MagicMock(stdout="", stderr=""),  # config name
-                MagicMock(stdout="", stderr=""),  # push
-            ]
+            mock_git.return_value = MagicMock(stdout="abc123\nM file.txt\n", stderr="")
             
             result = publisher.publish(source_dir=sample_output_dir)
             
             assert result["success"] is True
-            assert result["commit_hash"] == "abc123"
+            assert result["commit_hash"] == "abc123\nM file.txt"
     
     def test_publish_with_no_changes(self, publisher, sample_output_dir):
         """Test publish when there are no changes to commit."""
+        publisher.local_path.mkdir(parents=True, exist_ok=True)
         with patch.object(publisher, '_clone_repository'), \
              patch.object(publisher, '_copy_files_to_repo'), \
              patch.object(publisher, '_commit_changes'), \
-             patch.object(publisher, '_push_changes'):
+             patch.object(publisher, '_push_changes'), \
+             patch.object(publisher, '_run_git_command') as mock_git:
             
+            mock_git.return_value = MagicMock(stdout="abc123", stderr="")
             result = publisher.publish(source_dir=sample_output_dir)
             
             assert result["success"] is True
-            # commit_hash might be None if no changes
